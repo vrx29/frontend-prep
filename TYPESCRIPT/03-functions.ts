@@ -16,3 +16,5 @@ fetchData((data: string) => {
     console.log(data);
 });
 
+
+type AddFun = (a: number, b: number) => number;
