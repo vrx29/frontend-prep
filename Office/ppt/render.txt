@@ -1,0 +1,103 @@
+Some examples
+1. Live Dashboards - frequent data updates gradually increases DOM and memory , causing browser crash
+2. Animated Websites - consumes GPU and renderer memory, eventually leading to black screen or crashes
+3. Single Page Applications - accumulate javascript memory over time, resulting in unexpected crashes
+
+
+-------------------
+Why browser crashes?
+1. limited memory and GPU resources compared to desktop systems
+2. Javascript memory leaks where objects, arrays or event listeners are not released over time
+3. Unbounded DOM growth caused by UI updates without cleanup
+4. Strict renderer memory limits, causing OS to terminate the browser process when thresholds are exceeded.
+
+-----------------------------
+Mitigation Steps to prevent renderer crash
+1. Monitor browser memory - Track JS heap usage during runtime to identify normal vs peak usage
+2. Define safe memory thresholds - set warning and action limits(e.g 80% warning, 90% critical) before the browser reaches crash conditions
+3. Clean up unused resources - remove unused js objects, DOM elements, event listeners and to release memory
+4. Gracefully restart Before crash - reload or restart application in a controlled manner when memory crosses the critical threshold
+
+
+┌──────────────────────────────┐
+│   Web App Starts Running     │
+│   (Signage Browser Loads)    │
+└───────────────┬──────────────┘
+                │
+                ▼
+┌──────────────────────────────┐
+│  Memory Usage Grows Over Time│
+│  • JS Heap increases         │
+│  • DOM updates accumulate    │
+│  • Animations / Video run    │
+└───────────────┬──────────────┘
+                │
+                ▼
+┌──────────────────────────────┐
+│  Continuous Memory Monitoring│
+│  • Track used vs allowed mem │
+│  • Check at regular interval │
+└───────────────┬──────────────┘
+                │
+                ▼
+┌──────────────────────────────┐
+│  Warning Threshold (~80%)    │
+│  • System enters alert state │
+│  • Prepare mitigation steps │
+└───────────────┬──────────────┘
+                │
+                ▼
+┌──────────────────────────────┐
+│ Critical Threshold (~90%)    │
+│ • Trigger mitigation logic  │
+│ • Clean resources           │
+│ • Graceful reload/restart   │
+└───────────────┬──────────────┘
+                │
+                ▼
+┌──────────────────────────────┐
+│  Memory Reset & Stability    │
+│  • Browser memory reduced   │
+│  • Content continues safely │
+│  • Renderer crash avoided   │
+└──────────────────────────────┘
+
+-------------
+code sample
+-------------
+
+// Define thresholds
+const WARNING_THRESHOLD = 0.80;   // 80%
+const CRITICAL_THRESHOLD = 0.90;  // 90%
+
+setInterval(() => {
+    if (!performance.memory) return;
+
+    const used = performance.memory.usedJSHeapSize;
+    const limit = performance.memory.jsHeapSizeLimit;
+    const usageRatio = used / limit;
+
+    if (usageRatio >= CRITICAL_THRESHOLD) {
+        // Critical action to prevent crash
+        cleanupResources();
+        gracefulReload();
+    }
+    else if (usageRatio >= WARNING_THRESHOLD) {
+        // Warning state
+        logWarning();
+    }
+}, 5000);
+
+// Example mitigation actions
+function cleanupResources() {
+    // Remove unused DOM nodes
+    // Clear JS references
+    // Stop heavy animations or components
+}
+
+function gracefulReload() {
+    location.reload(); // controlled restart before crash
+}
+
+--------------------
+

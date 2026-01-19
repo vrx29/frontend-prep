@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Timer Mitigation Demo</title>
+<style>
+body { background: black; color: #0f0; font-family: Arial; }
+</style>
+</head>
+
+<body>
+
+<h2>Timer Leak – Mitigated</h2>
+<p>This page runs stably.</p>
+
+<script>
+let intervalId = null;
+let data = [];
+
+const WARNING = 0.80;
+const CRITICAL = 0.90;
+
+// SAFE: only one interval
+function startWork() {
+    if (intervalId) return;
+
+    intervalId = setInterval(() => {
+        let arr = new Array(1 * 1024 * 1024).fill(Math.random());
+        data.push(arr);
+    }, 1000);
+}
+
+function cleanup() {
+    console.log("Cleaning up...");
+    clearInterval(intervalId);
+    intervalId = null;
+    data = [];
+}
+
+function monitorMemory() {
+    if (!performance.memory) return;
+
+    const used = performance.memory.usedJSHeapSize;
+    const limit = performance.memory.jsHeapSizeLimit;
+    const usage = used / limit;
+
+    if (usage > CRITICAL) {
+        cleanup();
+        location.reload(); // graceful reset
+    }
+}
+
+// Start app
+startWork();
+
+// Monitor memory
+setInterval(monitorMemory, 5000);
+</script>
+
+</body>
+</html>
