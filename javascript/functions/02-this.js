@@ -20,4 +20,25 @@ const user = {
     console.log(hello + langs);
   },
 };
-user.greet()
+// user.greet()
+
+
+const numbers = {
+  numberA: 5,
+  numberB: 10,
+
+  sum: function() {
+    console.log(this === numbers); // => true
+
+    function calculate() {
+      // this is window or undefined in strict mode
+      console.log(this === numbers); // => false
+      console.log(this);
+      return this.numberA + this.numberB;
+    }
+
+    return calculate();
+  }
+};
+
+numbers.sum();
