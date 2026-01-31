@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { margin: 0; }
+
+    .section {
+      height: 100vh;
+      border-bottom: 2px solid #444;
+      background: #111;
+      color: white;
+      padding: 20px;
+
+      content-visibility: auto;
+      contain-intrinsic-size: 100vh;
+    }
+  </style>
+</head>
+<body>
+
+<div class="section" id="A"></div>
+<div class="section" id="B"></div>
+<div class="section" id="C"></div>
+
+<script>
+function createSection(el, name) {
+  let intervalId = null;
+  let count = 0;
+
+  function start() {
+    if (intervalId) return;
+    intervalId = setInterval(() => {
+      count++;
+      el.innerHTML = `
+        <h1>Section ${name}</h1>
+        <p>Update ${count}</p>
+        <div>${"█".repeat(5000)}</div>
+      `;
+    }, 1000);
+    console.log(name, "START");
+  }
+
+  function stop() {
+    if (!intervalId) return;
+    clearInterval(intervalId);
+    intervalId = null;
+    console.log(name, "STOP");
+  }
+
+  // Visibility change event
+  el.addEventListener("contentvisibilityautostatechange", (e) => {
+    e.skipped ? stop() : start();
+  });
+
+  // Initial startup (important!)
+  requestAnimationFrame(() => {
+    const r = el.getBoundingClientRect();
+    if (r.bottom > 0 && r.top < innerHeight) start();
+  });
+}
+
+["A","B","C"].forEach(id => {
+  createSection(document.getElementById(id), id);
+});
+</script>
+
+</body>
+</html>

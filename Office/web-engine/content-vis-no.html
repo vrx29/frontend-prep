@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { margin: 0; }
+    .section {
+      height: 100vh;
+      border-bottom: 2px solid #444;
+      background: #111;
+      color: white;
+      padding: 20px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="section" id="A"></div>
+<div class="section" id="B"></div>
+<div class="section" id="C"></div>
+
+<script>
+function startHeavyWork(el, name) {
+  let count = 0;
+
+  setInterval(() => {
+    count++;
+    el.innerHTML = `
+      <h1>Section ${name}</h1>
+      <p>Update ${count}</p>
+      <div>${"█".repeat(5000)}</div>
+    `;
+  }, 1000);
+
+  console.log(name, "START (no opt)");
+}
+
+["A","B","C"].forEach(id => {
+  startHeavyWork(document.getElementById(id), id);
+});
+</script>
+
+</body>
+</html>
