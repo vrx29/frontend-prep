@@ -1,279 +1,167 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Tizen Chromium M108 – Render Crash Demo</title>
+  <meta charset="UTF-8" />
+  <title>JS Heap Memory Tracker</title>
 
-<style>
-body {
-  /* background:#111; */
-  /* color:#fff; */
-  font-family:sans-serif;
-  padding:20px;
-}
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      background: #111;
+      color: #fff;
+      font-family: Arial, sans-serif;
+    }
 
-button {
-  padding:10px 14px;
-  margin:6px;
-  font-size:14px;
-}
+    h1 {
+      margin-top: 0;
+    }
 
-#domContainer {
-  display:flex;
-  flex-wrap:wrap;
-  margin-top:20px;
-}
+    button {
+      padding: 12px 20px;
+      font-size: 16px;
+      background: #2a7cff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-top: 20px;
+    }
 
-.box {
-  width:70px;
-  height:70px;
-  margin:5px;
-  background:linear-gradient(45deg, red, orange);
-  animation:spin 0.25s linear infinite;
-}
+    #content {
+      margin-top: 30px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
 
-@keyframes spin {
-  from { transform:rotate(0deg) scale(1); }
-  to   { transform:rotate(360deg) scale(1.1); }
-}
+    .block {
+      width: 100px;
+      height: 100px;
+      background: #2a7cff;
+    }
 
-canvas {
-  border:1px solid #333;
-  margin-top:20px;
-}
+    #memoryPanel {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      background: rgba(0,0,0,0.85);
+      padding: 12px 16px;
+      border-radius: 6px;
+      font-size: 14px;
+      min-width: 280px;
+    }
 
-iframe {
-  width:100%;
-  height:320px;
-  border:2px solid #444;
-  margin-top:20px;
-  background:black;
-}
+    #warning {
+      color: #ffcc00;
+      margin-top: 6px;
+    }
 
-/* HUD */
-#hud {
-  position:fixed;
-  top:10px;
-  right:10px;
-  background:rgba(0,0,0,0.8);
-  color:#0f0;
-  font-family:monospace;
-  font-size:11px;
-  padding:10px;
-  border-radius:6px;
-  z-index:9999;
-}
-#hud.danger { color:#ff4444; }
-</style>
+    #critical {
+      color: #ff4444;
+      margin-top: 6px;
+    }
+  </style>
 </head>
 
 <body>
 
-<h2>Tizen 7.0 – Chromium M108 Render Crash & Self-Healing Demo</h2>
+  <h1>JS Heap Memory Stress Test</h1>
+  <p>
+    This app allocates <b>real JS heap objects</b> that are counted by
+    <code>performance.memory.usedJSHeapSize</code>.
+  </p>
 
-<button onclick="startLoad()">🔥 Start Heavy Load</button>
-<button onclick="loadPowerBI()">📊 Load Power BI (Unoptimized)</button>
-<button onclick="manualMitigation()">🛠 Manual Mitigation</button>
-<button onclick="forceCrash()">💥 Force Crash</button>
-<button onclick="resetApp()">🔄 Reset</button>
+  <button onclick="addContent()">Add Content</button>
 
-<div id="domContainer"></div>
-<canvas id="canvas" width="900" height="250"></canvas>
-<iframe id="powerbi"></iframe>
-<div id="hud"></div>
+  <div id="content"></div>
+
+  <div id="memoryPanel">
+    <div id="memoryInfo">Memory: N/A</div>
+    <div id="warning"></div>
+    <div id="critical"></div>
+  </div>
 
 <script>
-/* =====================================================
-   CONFIG (DEMO VALUES)
-===================================================== */
-var CRASH_LIMIT_MB = 400;   // DEMO LIMIT
-var ALLOC_STEP_MB = 10;    // Allocation per tick
+  /*************************
+   * GLOBAL STATE
+   *************************/
+  const heapObjects = [];
+  const content = document.getElementById('content');
 
-/* =====================================================
-   GLOBAL STATE
-===================================================== */
-var domContainer = document.getElementById("domContainer");
-var canvas = document.getElementById("canvas");
-var ctx = canvas.getContext("2d");
-var iframe = document.getElementById("powerbi");
-var hud = document.getElementById("hud");
+  /*************************
+   * ADD REAL HEAP MEMORY
+   *************************/
+  function addContent() {
+    // Visible UI
+    const block = document.createElement('div');
+    block.className = 'block';
+    content.appendChild(block);
 
-var boxes = [];
-var nativeMemory = [];     // holds Uint8Array
-var allocatedMB = 0;
+    // Allocate ~10 MB of REAL JS heap memory
+    // (arrays of numbers are always on-heap)
+    const MB = 10;
+    const itemCount = MB * 1024 * 1024 / 8; // numbers ~8 bytes
 
-var domInterval = null;
-var canvasRAF = null;
-var crashActive = false;
-var mitigating = false;
-
-/* =====================================================
-   FPS TRACKING
-===================================================== */
-var fps = 0, frames = 0, lastFPS = performance.now();
-function fpsLoop(ts) {
-  frames++;
-  if (ts - lastFPS >= 1000) {
-    fps = frames;
-    frames = 0;
-    lastFPS = ts;
-  }
-  requestAnimationFrame(fpsLoop);
-}
-requestAnimationFrame(fpsLoop);
-
-/* =====================================================
-   HUD UPDATE (REAL SIGNALS)
-===================================================== */
-setInterval(function () {
-  var domCount = document.getElementsByTagName("*").length;
-
-  var danger =
-    allocatedMB >= CRASH_LIMIT_MB ||
-    fps < 15 ||
-    domCount > 1500;
-
-  hud.className = danger ? "danger" : "";
-  hud.innerHTML =
-    "FPS: " + fps + "<br>" +
-    "Tracked Memory: " + allocatedMB + " / " + CRASH_LIMIT_MB + " MB<br>" +
-    "DOM Nodes: " + domCount + "<br>" +
-    "Health: " + (danger ? "DANGER" : "OK");
-
-  if (danger) autoMitigation("RESOURCE_PRESSURE");
-}, 1000);
-
-/* =====================================================
-   HEAVY LOAD (REAL CRASH BEHAVIOR)
-===================================================== */
-function startLoad() {
-  if (crashActive) return;
-  crashActive = true;
-
-  domInterval = setInterval(function () {
-
-    // DOM explosion
-    for (var i = 0; i < 20; i++) {
-      var d = document.createElement("div");
-      d.className = "box";
-      domContainer.appendChild(d);
-      boxes.push(d);
+    const arr = new Array(itemCount);
+    for (let i = 0; i < arr.length; i++) {
+      arr[i] = Math.random(); // unique values, no optimization
     }
 
-    // REAL native memory allocation (no GC)
-    nativeMemory.push(
-      new Uint8Array(ALLOC_STEP_MB * 1024 * 1024)
-    );
-    allocatedMB += ALLOC_STEP_MB;
+    heapObjects.push(arr);
+  }
 
-  }, 400);
+  /*************************
+   * FREE MEMORY
+   *************************/
+  function freeMemory() {
+    // Remove half of allocated objects
+    heapObjects.splice(0, Math.floor(heapObjects.length / 2));
 
-  function draw() {
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-    for (var i = 0; i < 400; i++) {
-      ctx.fillStyle = "hsl(" + (Math.random()*360) + ",100%,50%)";
-      ctx.fillRect(
-        Math.random()*canvas.width,
-        Math.random()*canvas.height,
-        30, 30
-      );
+    // Trim UI
+    while (content.children.length > 20) {
+      content.removeChild(content.firstChild);
     }
-    canvasRAF = requestAnimationFrame(draw);
-  }
-  draw();
-}
-
-/* =====================================================
-   POWER BI SIMULATION (REAL IFRAME PRESSURE)
-===================================================== */
-function loadPowerBI() {
-  iframe.srcdoc =
-    "<html><body style='margin:0;background:black;'>" +
-    "<script>" +
-    "var mem=[];" +
-    "var c=document.createElement('canvas');" +
-    "c.width=1200;c.height=600;" +
-    "document.body.appendChild(c);" +
-    "var x=c.getContext('2d');" +
-    "function render(){" +
-      "x.clearRect(0,0,c.width,c.height);" +
-      "for(var i=0;i<600;i++){" +
-        "x.fillStyle='hsl('+(Math.random()*360)+',90%,50%)';" +
-        "x.fillRect(Math.random()*c.width,Math.random()*c.height,40,40);" +
-      "}" +
-      "mem.push(new Uint8Array(8*1024*1024));" + // 8MB per refresh
-    "}" +
-    "setInterval(render,1500);" +
-    "<\/script>" +
-    "<div style='position:fixed;bottom:5px;left:5px;color:#0f0;font-size:11px'>" +
-    "Power BI Dashboard – Unoptimized" +
-    "</div>" +
-    "</body></html>";
-}
-
-/* =====================================================
-   MITIGATION ENGINE
-===================================================== */
-function autoMitigation(reason) {
-  if (mitigating) return;
-  mitigating = true;
-  runMitigation();
-}
-
-function manualMitigation() {
-  runMitigation();
-}
-
-function runMitigation() {
-  clearInterval(domInterval);
-  cancelAnimationFrame(canvasRAF);
-
-  // Slow animations
-  for (var i = 0; i < boxes.length; i++) {
-    boxes[i].style.animationDuration = "1.5s";
   }
 
-  // Drop DOM
-  domContainer.innerHTML = "";
-  boxes = [];
+  /*************************
+   * MEMORY MONITOR
+   *************************/
+  function updateMemoryStats() {
+    const info = document.getElementById('memoryInfo');
+    const warning = document.getElementById('warning');
+    const critical = document.getElementById('critical');
 
-  // Free memory
-  nativeMemory = [];
-  allocatedMB = 0;
+    warning.textContent = '';
+    critical.textContent = '';
 
-  // Reset iframe
-  iframe.srcdoc = "";
+    if (!performance.memory) {
+      info.textContent = 'performance.memory not supported';
+      return;
+    }
 
-  setTimeout(function () {
-    mitigating = false;
-  }, 4000);
-}
+    const used = performance.memory.usedJSHeapSize;
+    const total = performance.memory.jsHeapSizeLimit;
+    const percent = (used / total) * 100;
 
-/* =====================================================
-   FORCE CRASH (WORKSHOP BUTTON)
-===================================================== */
-function forceCrash() {
-  for (var i = 0; i < 50; i++) {
-    nativeMemory.push(new Uint8Array(20 * 1024 * 1024));
-    allocatedMB += 20;
+    info.textContent =
+      `Used: ${(used / 1048576).toFixed(1)} MB / ` +
+      `Limit: ${(total / 1048576).toFixed(1)} MB ` +
+      `(${percent.toFixed(2)}%)`;
+
+    if (percent > 70 && percent <= 90) {
+      warning.textContent =
+        '⚠ High memory usage – application may become unstable';
+    }
+
+    if (percent > 90) {
+      critical.textContent =
+        '🚨 Critical memory usage – freeing memory to avoid crash';
+      freeMemory();
+    }
   }
-}
 
-/* =====================================================
-   RESET
-===================================================== */
-function resetApp() {
-  clearInterval(domInterval);
-  cancelAnimationFrame(canvasRAF);
-  domContainer.innerHTML = "";
-  boxes = [];
-  nativeMemory = [];
-  allocatedMB = 0;
-  iframe.srcdoc = "";
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  crashActive = false;
-  mitigating = false;
-}
+  setInterval(updateMemoryStats, 1000);
 </script>
 
 </body>
