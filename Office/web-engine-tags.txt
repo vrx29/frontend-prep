@@ -1,33 +1,54 @@
-// Chrome - 95
+fetchpriority
+The fetchpriority attribute allows you to specify the priority for resource types such as CSS, fonts, scripts, images, and iframes. Used to optimize the page load.
 
-https://developer.chrome.com/blog/new-in-chrome-95
-https://v8.dev/blog/v8-release-95
+<!-- We don't want a high priority for this above-the-fold image -->
+<img src="/not-important.svg" fetchpriority="low">
 
--------------------------
+<!-- Initiate an early fetch for a resource, but de-prioritize it -->
+<link rel="preload" href="/script.js" as="script" fetchpriority="low">
 
-Chrome 96
+<script>
+  fetch('https://example.com/', {fetchpriority: 'high'})
+      .then(data => {
+        // Trigger a high priority fetch
+      });
+</script>
 
-https://developer.chrome.com/blog/new-in-chrome-96
-https://v8.dev/blog/v8-release-96
 
-97
-https://developer.chrome.com/blog/new-in-chrome-97
-https://v8.dev/blog/v8-release-97
+- https://web.dev/articles/fetch-priority
 
-98
-https://developer.chrome.com/blog/new-in-chrome-98
+----------------------------------------------------------
 
-99
-https://developer.chrome.com/blog/new-in-chrome-99
+HTTP 103 Early Hints
+It is an informational HTTP status code. Servers can send 103 responses with some hints that help a client to make preparations for the final response.
 
-100
-https://developer.chrome.com/blog/new-in-chrome-100
+ex - 
+<link as="font" crossorigin="anonymous"
+      href="..." rel="preload">
 
-101
-https://developer.chrome.com/blog/new-in-chrome-101
+The server can include link rel=preload in the final response so that the client can start loading style.css as soon as the headers are received, before parsing the HTML body.
 
-102
-https://developer.chrome.com/blog/new-in-chrome-102
 
-103
-https://developer.chrome.com/blog/new-in-chrome-103
+------------------------------------------------------------
+renderBlockingStatus : Identify render blocking resources
+erformance API includes the renderBlockingStatus property which provides a direct signal from the browser that identifies the resources that prevent your page from displaying, until they are downloaded.
+
+// Get all resources
+const res = window.performance.getEntriesByType('resource');
+
+// Filter to get only the blocking ones
+const blocking =   res.filter(({renderBlockingStatus}) =>
+      renderBlockingStatus === 'blocking');
+
+
+------------------------------------------------------------
+New viewport size units
+The new viewport units give you more control to create adaptive UIs.
+The large lvh (large viewport height) units provide the viewport size assuming that those user agent interfaces are collapsed.
+
+small svh (small viewport height) units provide viewport size assuming the interfaces are expanded.
+
+dvh (dynamic viewport height)And with dynamic units the viewport size will automatically adjust itself in response to browser interface elements being shown or not.
+
+The value will be anything within the limits of the large unit (the maximum) and small units (the minimum).
+
