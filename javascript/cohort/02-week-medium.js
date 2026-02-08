@@ -20,4 +20,4 @@ function clock(){
    const ampm = hour > 12 ? "PM" : "AM"
    console.log(`${hour > 12 ? hour - 12 : hour}:${date.getMinutes()}:${date.getSeconds()} ${ampm}`);
 }
-clock()
+setInterval(clock,1000)
