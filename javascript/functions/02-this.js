@@ -14,3 +14,4 @@ const myCat = new Pet('Cat', 4);
 // logs "The undefined has undefined legs"
 // or throws a TypeError in strict mode
 setTimeout(myCat.logInfo, 1000);
+
