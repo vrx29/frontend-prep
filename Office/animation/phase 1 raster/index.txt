@@ -1,0 +1,3 @@
+FPS drops + no long tasks
+
+→ Raster / GPU bottleneck

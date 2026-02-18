@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+body {
+  margin: 0;
+  overflow: hidden;
+}
+
+.box {
+  position: absolute;
+  width: 200px;
+  height: 200px;
+  background: red;
+  will-change: transform;
+  animation: move 2s infinite alternate;
+}
+
+@keyframes move {
+  from { transform: translateX(0); }
+  to { transform: translateX(800px); }
+}
+</style>
+</head>
+<body>
+
+<div id="fps"></div>
+
+<script>
+for (let i = 0; i < 300; i++) {
+  const div = document.createElement("div");
+  div.className = "box";
+  div.style.top = i * 20 + "px";
+  document.body.appendChild(div);
+}
+
+let last = performance.now();
+let frames = 0;
+
+function fpsMeter() {
+  frames++;
+  let now = performance.now();
+
+  if (now - last >= 1000) {
+    document.getElementById("fps").innerText = "FPS: " + frames;
+    frames = 0;
+    last = now;
+  }
+
+  requestAnimationFrame(fpsMeter);
+}
+fpsMeter();
+</script>
+
+</body>
+</html>
