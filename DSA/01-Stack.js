@@ -29,6 +29,8 @@ function Stack() {
     }
 }
 
+// Implement Stack using Queue
+
 
 var stack = new Stack()
 stack.push(10)
@@ -37,3 +39,4 @@ console.log(stack.peek())
 console.log(stack.pop())
 console.log(stack.peek())
 console.log(stack.size())
+
